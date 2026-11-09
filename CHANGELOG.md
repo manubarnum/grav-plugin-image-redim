@@ -1,3 +1,9 @@
+# v2.1.3
+## 2026-11-09
+
+1. [](#bugfix)
+    * The widget did not load when the admin was opened or reloaded directly on a page editor URL: Admin 2 matches `routes` exactly, so the current Pages route (from the request Referer) is now added next to `/pages`
+
 # v2.1.2
 ## 2026-11-09
 

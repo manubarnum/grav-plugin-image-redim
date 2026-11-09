@@ -46,7 +46,7 @@ class ImageRedimPlugin extends Plugin
             'priority' => 0,
             'autoLoad' => true,        // load the script without a click
             'showFab'  => false,       // no floating button
-            'routes'   => ['/pages'],  // only on the Pages screens
+            'routes'   => $this->routes(), // only on the Pages screens
             'config'   => [
                 'mode'       => (string) $this->config->get('plugins.image-redim.mode', 'resize'),
                 'lock_ratio' => (bool) $this->config->get('plugins.image-redim.lock_ratio', true),
@@ -55,6 +55,33 @@ class ImageRedimPlugin extends Plugin
         ];
 
         $event['widgets'] = $widgets;
+    }
+
+    /**
+     * Admin routes the widget loads on.
+     *
+     * Admin 2 matches `routes` exactly, so '/pages' alone does not cover
+     * '/pages/edit/<page>' when the admin is opened (or reloaded) directly on
+     * an editor URL. The widget list is requested by the admin page itself, so
+     * its Referer tells which admin screen is being opened: when it is a Pages
+     * screen, that exact route is added too.
+     *
+     * @return array<int, string>
+     */
+    private function routes(): array
+    {
+        $routes = ['/pages'];
+
+        $referer = $_SERVER['HTTP_REFERER'] ?? '';
+        $path = is_string($referer) ? (string) parse_url($referer, PHP_URL_PATH) : '';
+        if ($path !== '' && preg_match('#(/pages(?:/[^?\#]*)?)$#', $path, $m)) {
+            $route = rtrim($m[1], '/');
+            if ($route !== '' && $route !== '/pages' && strlen($route) <= 512) {
+                $routes[] = $route;
+            }
+        }
+
+        return $routes;
     }
 
     /**
