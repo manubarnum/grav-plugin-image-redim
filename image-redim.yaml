@@ -1,0 +1,3 @@
+enabled: true
+mode: resize
+lock_ratio: true
