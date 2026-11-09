@@ -35,14 +35,14 @@ bin/gpm install image-redim
 
 1. Open a page in Admin 2.
 2. In the editor, hover an image such as `![alt](photo.jpg)`, or place the text cursor on it.
-3. Click the **⤡ Redimensionner** button that appears next to it.
+3. Click the **⤡ Resize** button that appears next to it.
 4. In the panel that opens:
    - drag the blue handle on the preview, or type a width and height;
    - keep **Proportions** checked to preserve the aspect ratio;
    - pick the resize method.
-5. Click **Appliquer** (Apply). The image line is rewritten in the editor.
+5. Click **Apply**. The image line is rewritten in the editor.
 
-**Taille d'origine** (Original size) removes the size parameters and restores the original image.
+**Original size** removes the size parameters and restores the original image.
 Other parameters already in the image URL (`lightbox`, `classes`, `quality`…) are kept.
 
 File names with spaces are supported. Admin 2 writes them between angle brackets, for example
@@ -75,7 +75,10 @@ Changes are saved to `user/config/plugins/image-redim.yaml`.
 Admin 2 is a JavaScript single-page application. It does not load plugin CSS and JS through Twig,
 as the classic admin did. Image Redim therefore registers an invisible **floating widget**
 through the `onApiFloatingWidgets` event, with `autoLoad: true` and `showFab: false`.
-Admin 2 then loads `admin-next/widgets/image-redim.js`.
+The widget is scoped with `routes: ['/pages']`, so Admin 2 only loads
+`admin-next/widgets/image-redim.js` on the Pages screens.
+The interface strings are translated server-side from `languages.yaml`, in the user's admin
+language, and passed to the script in the widget `config`. Errors are shown with Admin 2 toasts.
 
 That script:
 
@@ -92,6 +95,7 @@ image-redim/
 ├── blueprints.yaml                     # plugin definition and settings form
 ├── image-redim.php                     # registers the widget (server side)
 ├── image-redim.yaml                    # default settings
+├── languages.yaml                      # English and French translations
 ├── CHANGELOG.md
 ├── LICENSE
 └── README.md
@@ -99,22 +103,27 @@ image-redim/
 
 ## Limitations
 
-- Only the default Admin 2 Markdown editor is supported, not **Editor Pro**.
+- Only the default Admin 2 Markdown editor (CodeMirror) is supported. **Editor Pro** is not supported.
 - The panel preview works for images attached to the page. For external images, you can still type
   the size by hand.
-- The interface labels are currently in French.
 
 ## Troubleshooting
 
 Open the browser console (F12). You should see:
 
 ```
-[Image Redim] chargé
-[Image Redim] éditeur détecté
+[Image Redim] loaded
+[Image Redim] editor detected
 ```
 
-- **No message:** the plugin is not loaded. Check that it is enabled, clear the cache and reload with Ctrl+F5.
+- **No message:** the plugin is not loaded. Check that it is enabled, clear the cache, then open the **Pages** list
+  and the page from there.
 - **Only the first message:** no supported editor was found on the page.
+
+## Translations
+
+English and French are included in `languages.yaml`. To add a language, copy the `en:` block,
+change the code (for example `de:`) and translate the values. Pull requests are welcome.
 
 ## License
 

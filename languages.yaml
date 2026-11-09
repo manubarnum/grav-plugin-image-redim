@@ -1,0 +1,45 @@
+en:
+  PLUGIN_IMAGE_REDIM:
+    ENABLED: Plugin status
+    MODE: Default resize method
+    MODE_HELP: "resize: Grav generates a smaller copy of the image (recommended, lighter pages). cropResize: same, fitted inside the box without distortion. html: the original image is kept, only the width/height attributes are added."
+    MODE_RESIZE: "resize (Grav generates the image)"
+    MODE_CROPRESIZE: "cropResize (fit inside the box)"
+    MODE_HTML: "html (width/height attributes)"
+    LOCK_RATIO: Keep proportions by default
+    TRIGGER: Resize
+    CLOSE: Close
+    DRAG: Drag to resize
+    WIDTH: W
+    HEIGHT: H
+    PROPORTIONS: Proportions
+    ORIGINAL: Original
+    UNKNOWN_SIZE: Original size unknown
+    UPSCALE: upscaling
+    NO_PREVIEW: Preview unavailable (image not in this page's media)
+    RESET: Original size
+    APPLY: Apply
+    CHANGED: The image was changed in the meantime. Please try again.
+
+fr:
+  PLUGIN_IMAGE_REDIM:
+    ENABLED: État du plugin
+    MODE: Méthode de redimensionnement par défaut
+    MODE_HELP: "resize : Grav génère une copie réduite de l'image (recommandé, allège la page). cropResize : idem, ajustée dans le cadre sans déformer. html : l'image d'origine est conservée, seuls les attributs width/height sont ajoutés."
+    MODE_RESIZE: "resize (Grav génère l'image)"
+    MODE_CROPRESIZE: "cropResize (tient dans le cadre)"
+    MODE_HTML: "html (attributs width/height)"
+    LOCK_RATIO: Conserver les proportions par défaut
+    TRIGGER: Redimensionner
+    CLOSE: Fermer
+    DRAG: Glisser pour redimensionner
+    WIDTH: L
+    HEIGHT: H
+    PROPORTIONS: Proportions
+    ORIGINAL: Original
+    UNKNOWN_SIZE: Dimensions d'origine inconnues
+    UPSCALE: agrandissement
+    NO_PREVIEW: Aperçu indisponible (image hors médias de la page)
+    RESET: Taille d'origine
+    APPLY: Appliquer
+    CHANGED: L'image a été modifiée entre-temps, réessayez.

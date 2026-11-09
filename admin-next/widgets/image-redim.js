@@ -1,19 +1,22 @@
 /**
  * Image Redim — Admin 2 (Grav 2)
  *
- * Chargé par Admin 2 comme « widget flottant » invisible (autoLoad, showFab:false).
- * S'accroche aux éditeurs CodeMirror 6 de l'admin (élément .cm-editor, dont
- * Admin 2 expose la vue sur la propriété __cmView).
+ * Loaded by Admin 2 as an invisible floating widget (autoLoad, showFab: false,
+ * routes: ['/pages']). Attaches to the Admin 2 CodeMirror 6 editors
+ * (.cm-editor elements, whose view Admin 2 exposes as __cmView).
  *
- * - Survol (ou curseur) sur une image Markdown ![alt](photo.jpg)
- *   -> bouton « ⤡ Redimensionner »
- * - Panneau : aperçu avec poignée, largeur / hauteur, proportions, méthode
- * - « Appliquer » réécrit l'image : ![alt](photo.jpg?resize=800,0)
+ * - Hover (or put the cursor on) a Markdown image ![alt](photo.jpg)
+ *   -> "Resize" button
+ * - Panel: preview with a drag handle, width / height, proportions, method
+ * - "Apply" rewrites the image: ![alt](photo.jpg?resize=800)
+ *
+ * Interface strings are translated server-side (languages.yaml) and passed
+ * in the widget config; English is the fallback.
  */
 (function () {
   'use strict';
 
-  // Admin 2 attend qu'un élément personnalisé soit défini pour ce widget
+  // Admin 2 expects a custom element to be defined for this widget
   var TAG = window.__GRAV_WIDGET_TAG || 'grav-image-redim--widget';
   if (!customElements.get(TAG)) {
     customElements.define(TAG, class extends HTMLElement {});
@@ -21,29 +24,76 @@
   if (window.__IMAGE_REDIM_LOADED__) return;
   window.__IMAGE_REDIM_LOADED__ = true;
 
-  var CFG = { mode: 'resize', lock_ratio: true };
+  var CFG = { mode: 'resize', lock_ratio: true, strings: {} };
+
+  // English fallback. Translations come from languages.yaml through the widget config.
+  var DEFAULT_STRINGS = {
+    trigger: 'Resize',
+    close: 'Close',
+    drag: 'Drag to resize',
+    width: 'W',
+    height: 'H',
+    proportions: 'Proportions',
+    mode_resize: 'resize (Grav generates the image)',
+    mode_cropresize: 'cropResize (fit inside the box)',
+    mode_html: 'html (width/height attributes)',
+    original: 'Original',
+    unknown_size: 'Original size unknown',
+    upscale: 'upscaling',
+    no_preview: 'Preview unavailable (image not in this page\'s media)',
+    reset: 'Original size',
+    apply: 'Apply',
+    changed: 'The image was changed in the meantime. Please try again.'
+  };
+  function t(key) {
+    var v = CFG.strings && CFG.strings[key];
+    return typeof v === 'string' && v !== '' ? v : DEFAULT_STRINGS[key];
+  }
+
+  /* Pages screens only: the widget is scoped to /pages, but once loaded an
+     SPA script stays alive, so it also stays idle on other admin screens. */
+  function onPagesRoute() {
+    var base = window.__GRAV_ADMIN_BASE || '';
+    var path = location.pathname;
+    if (base && path.indexOf(base) === 0) path = path.slice(base.length);
+    return path === '/pages' || path.indexOf('/pages/') === 0;
+  }
+
+  function notifyError(message) {
+    var toast = window.__GRAV_TOAST;
+    if (toast && typeof toast.error === 'function') toast.error(message);
+    else console.warn('[Image Redim] ' + message);
+  }
   // Accepte ![alt](photo.jpg), ![alt](photo.jpg "titre") et ![alt](<nom avec espaces.jpg>)
   var IMG_RE = /!\[([^\]]*)\]\((<[^>\n]*>|[^)\s]+)((?:\s+"[^"]*")?)\)/g;
   var SIZE_KEYS = ['resize', 'cropResize', 'forceResize', 'width', 'height'];
 
-  /* ---------------- Configuration (lue depuis la déclaration du widget) ---------------- */
+  /* ---------------- Configuration (from the widget registration) ---------------- */
+
+  function applyConfig(list) {
+    if (!list) return;
+    if (!Array.isArray(list)) list = list.data || [];
+    list.forEach(function (w) {
+      if (w && w.id === 'image-redim' && w.config) Object.assign(CFG, w.config);
+    });
+    trigger.textContent = '⤡ ' + t('trigger');
+  }
 
   function loadConfig() {
     try {
+      var api = window.__GRAV_API;
+      if (api && typeof api.get === 'function') {
+        Promise.resolve(api.get('/floating-widgets')).then(applyConfig).catch(function () {});
+        return;
+      }
       var base = (window.__GRAV_API_SERVER_URL || '') + (window.__GRAV_API_PREFIX || '/api/v1');
       var headers = {};
       if (window.__GRAV_API_TOKEN) headers['X-API-Token'] = window.__GRAV_API_TOKEN;
       fetch(base + '/floating-widgets', { headers: headers, credentials: 'same-origin' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (json) {
-          if (!json) return;
-          var list = Array.isArray(json) ? json : (json.data || []);
-          list.forEach(function (w) {
-            if (w && w.id === 'image-redim' && w.config) Object.assign(CFG, w.config);
-          });
-        })
+        .then(applyConfig)
         .catch(function () {});
-    } catch (e) { /* valeurs par défaut */ }
+    } catch (e) { /* defaults */ }
   }
 
   /* ---------------- Styles ---------------- */
@@ -75,7 +125,7 @@
   style.textContent = css;
   document.head.appendChild(style);
 
-  /* ---------------- Utilitaires Markdown ---------------- */
+  /* ---------------- Markdown helpers ---------------- */
 
   function parseUrl(url) {
     var q = url.indexOf('?');
@@ -111,8 +161,8 @@
         if (w) params.push(['width', String(w)]);
         if (h) params.push(['height', String(h)]);
       } else if (!h) {
-        // Largeur seule = hauteur proportionnelle. Ne jamais écrire « ,0 » :
-        // la bibliothèque d'images de Grav 2 le prend pour une hauteur nulle.
+        // Width only = proportional height. Never write ",0":
+        // Grav 2's image library takes it as a zero height.
         params.push([mode, String(w)]);
       } else if (w) {
         params.push([mode, w + ',' + h]);
@@ -127,7 +177,7 @@
     catch (e) { return path.split('/').pop(); }
   }
 
-  /* URL réelle de l'image : médias de la page fournis par Admin 2 */
+  /* Real image URL, from the page media list provided by Admin 2 */
   function resolveImageSrc(mdPath) {
     var clean = mdPath.split('?')[0];
     if (/^(https?:)?\/\//.test(clean)) return clean;
@@ -163,27 +213,27 @@
   function imageAtCursor(view) { return imageAt(view, view.state.selection.main.head); }
 
   function replaceImage(view, img, newUrl) {
-    // Chevrons conservés (ou ajoutés) si le nom contient des espaces
+    // Keep (or add) angle brackets when the file name contains spaces
     var dest = (img.angle || /\s/.test(newUrl)) ? '<' + newUrl + '>' : newUrl;
     var md = '![' + img.alt + '](' + dest + img.title + ')';
     var doc = view.state.doc, from = img.from, to = img.to;
-    // Le texte a pu bouger (édition collaborative, frappe) : on le retrouve
+    // The text may have moved (typing, collaborative editing): find it again
     if (doc.sliceString(from, to) !== img.text) {
       var all = doc.toString(), idx = all.indexOf(img.text, Math.max(0, from - 2000));
       if (idx === -1) idx = all.indexOf(img.text);
-      if (idx === -1) { alert('Image Redim : l\'image a été modifiée entre-temps, réessayez.'); return; }
+      if (idx === -1) { notifyError(t('changed')); return; }
       from = idx; to = idx + img.text.length;
     }
     view.dispatch({ changes: { from: from, to: to, insert: md }, selection: { anchor: from + md.length } });
     view.focus();
   }
 
-  /* ---------------- Bouton flottant ---------------- */
+  /* ---------------- Floating button ---------------- */
 
   var trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'ir-trigger';
-  trigger.textContent = '⤡ Redimensionner';
+  trigger.textContent = '⤡ ' + t('trigger');
   trigger.style.display = 'none';
   var triggerCtx = null, hideTimer = null;
 
@@ -233,10 +283,10 @@
     if (view.scrollDOM) view.scrollDOM.addEventListener('scroll', function () {
       if (triggerCtx && triggerCtx.view === view) showTrigger(view, triggerCtx.img);
     });
-    console.info('[Image Redim] éditeur détecté');
+    console.info('[Image Redim] editor detected');
   }
 
-  /* ---------------- Panneau ---------------- */
+  /* ---------------- Panel ---------------- */
 
   var panel = null;
 
@@ -257,21 +307,33 @@
     panel = document.createElement('div');
     panel.className = 'ir-panel';
     panel.innerHTML =
-      '<div class="ir-head"><span class="ir-title"></span><button type="button" class="ir-close" title="Fermer">×</button></div>' +
-      '<div class="ir-stage"><div class="ir-box"><span class="ir-handle" title="Glisser pour redimensionner"></span></div></div>' +
+      '<div class="ir-head"><span class="ir-title"></span><button type="button" class="ir-close">×</button></div>' +
+      '<div class="ir-stage"><div class="ir-box"><span class="ir-handle"></span></div></div>' +
       '<div class="ir-row">' +
-        '<label>L <input type="number" min="1" class="ir-w"></label>' +
-        '<label>H <input type="number" min="1" class="ir-h"></label>' +
-        '<label><input type="checkbox" class="ir-lock"> Proportions</label>' +
+        '<label><span class="ir-l-w"></span> <input type="number" min="1" class="ir-w"></label>' +
+        '<label><span class="ir-l-h"></span> <input type="number" min="1" class="ir-h"></label>' +
+        '<label><input type="checkbox" class="ir-lock"> <span class="ir-l-lock"></span></label>' +
       '</div>' +
       '<div class="ir-row"><select class="ir-mode">' +
-        '<option value="resize">resize (Grav génère l\'image)</option>' +
-        '<option value="cropResize">cropResize (tient dans le cadre)</option>' +
-        '<option value="html">html (attributs width/height)</option>' +
+        '<option value="resize"></option>' +
+        '<option value="cropResize"></option>' +
+        '<option value="html"></option>' +
       '</select></div>' +
       '<div class="ir-info"></div>' +
-      '<div class="ir-actions"><button type="button" class="ir-reset">Taille d\'origine</button>' +
-      '<button type="button" class="ir-apply">Appliquer</button></div>';
+      '<div class="ir-actions"><button type="button" class="ir-reset"></button>' +
+      '<button type="button" class="ir-apply"></button></div>';
+    // Text set with textContent (no HTML injection from translations)
+    var setText = function (sel, key) { panel.querySelector(sel).textContent = t(key); };
+    panel.querySelector('.ir-close').title = t('close');
+    panel.querySelector('.ir-handle').title = t('drag');
+    setText('.ir-l-w', 'width');
+    setText('.ir-l-h', 'height');
+    setText('.ir-l-lock', 'proportions');
+    setText('option[value="resize"]', 'mode_resize');
+    setText('option[value="cropResize"]', 'mode_cropresize');
+    setText('option[value="html"]', 'mode_html');
+    setText('.ir-reset', 'reset');
+    setText('.ir-apply', 'apply');
     document.body.appendChild(panel);
 
     var $ = function (s) { return panel.querySelector(s); };
@@ -298,9 +360,9 @@
       scale = Math.min(1, maxW / Math.max(natW || w, w), maxH / Math.max(natH || h, h));
       box.style.width = Math.round(w * scale) + 'px';
       box.style.height = Math.round(h * scale) + 'px';
-      var txt = natW ? 'Original : ' + natW + ' × ' + natH + ' px' : 'Dimensions d\'origine inconnues';
+      var txt = natW ? t('original') + ': ' + natW + ' × ' + natH + ' px' : t('unknown_size');
       if (state.w || state.h) txt += ' → ' + (state.w || 'auto') + ' × ' + (state.h || 'auto');
-      if (natW && state.w > natW && state.mode !== 'html') txt += ' ⚠ agrandissement';
+      if (natW && state.w > natW && state.mode !== 'html') txt += ' ⚠ ' + t('upscale');
       info.textContent = txt;
     }
     function setW(w) {
@@ -330,7 +392,7 @@
     } else {
       var ph = document.createElement('div');
       ph.className = 'ir-noimg';
-      ph.textContent = 'Aperçu indisponible (image hors médias de la page)';
+      ph.textContent = t('no_preview');
       box.insertBefore(ph, handle);
       if (state.w && state.h) ratio = state.w / state.h;
     }
@@ -365,9 +427,9 @@
     });
     $('.ir-apply').addEventListener('click', function () {
       var w = state.w, h = state.h;
-      // Proportions conservées : la largeur seule suffit (ex. resize=800)
+      // Proportions kept: the width alone is enough (e.g. resize=800)
       if (state.mode !== 'html' && state.lock && w) h = null;
-      // Grav exige une largeur : on la déduit de la hauteur si besoin
+      // Grav needs a width: derive it from the height if needed
       if (state.mode !== 'html' && !w && h && ratio) w = Math.round(h * ratio);
       replaceImage(view, img, buildUrl(parsed, w, h, state.mode));
       closePanel();
@@ -380,11 +442,11 @@
     if (panel && !panel.contains(e.target) && e.target !== trigger) closePanel();
   }, true);
 
-  /* ---------------- Initialisation ---------------- */
+  /* ---------------- Init ---------------- */
 
   function scan() {
-    document.querySelectorAll('.cm-editor').forEach(hookEditor);
-    // Éditeur retiré (navigation dans l'admin) : on masque le bouton
+    if (onPagesRoute()) document.querySelectorAll('.cm-editor').forEach(hookEditor);
+    // Editor removed (admin navigation): hide the button and the panel
     if (triggerCtx && !document.body.contains(triggerCtx.view.dom)) {
       trigger.style.display = 'none'; triggerCtx = null;
       if (panel) closePanel();
@@ -394,8 +456,12 @@
   document.body.appendChild(trigger);
   loadConfig();
   scan();
-  var t = null;
-  new MutationObserver(function () { clearTimeout(t); t = setTimeout(scan, 150); })
-    .observe(document.body, { childList: true, subtree: true });
-  console.info('[Image Redim] chargé');
+  var timer = null;
+  new MutationObserver(function () {
+    // Idle outside the Pages screens (no editor lookup, no timer)
+    if (!onPagesRoute() && !triggerCtx) return;
+    clearTimeout(timer);
+    timer = setTimeout(scan, 150);
+  }).observe(document.body, { childList: true, subtree: true });
+  console.info('[Image Redim] loaded');
 })();

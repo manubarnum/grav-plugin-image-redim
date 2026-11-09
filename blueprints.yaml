@@ -1,8 +1,8 @@
 name: Image Redim
 slug: image-redim
 type: plugin
-version: 2.0.3
-description: "Visual (WYSIWYG) image resizing in the Admin 2 Markdown editor (Grav 2). — Redimensionnement visuel (WYSIWYG) des images dans l'éditeur Markdown d'Admin 2 (Grav 2)."
+version: 2.1.0
+description: Visual (WYSIWYG) image resizing in the Admin 2 Markdown editor (Grav 2).
 icon: arrows-alt
 author:
   name: Enkirche
@@ -25,32 +25,31 @@ form:
   fields:
     enabled:
       type: toggle
-      label: Activer le plugin
+      label: PLUGIN_IMAGE_REDIM.ENABLED
       highlight: 1
       default: 1
       options:
-        1: Activé
-        0: Désactivé
+        1: PLUGIN_ADMIN.ENABLED
+        0: PLUGIN_ADMIN.DISABLED
       validate:
         type: bool
 
     mode:
       type: select
-      label: Méthode de redimensionnement par défaut
-      help: "resize : Grav génère une nouvelle image aux dimensions choisies (recommandé, allège la page). cropResize : idem mais sans jamais déformer. html : l'image d'origine est conservée, seuls les attributs width/height sont ajoutés."
+      label: PLUGIN_IMAGE_REDIM.MODE
+      help: PLUGIN_IMAGE_REDIM.MODE_HELP
       default: resize
       options:
-        resize: "resize (Grav génère l'image)"
-        cropResize: "cropResize (tient dans le cadre)"
-        html: "html (attributs width/height)"
+        resize: PLUGIN_IMAGE_REDIM.MODE_RESIZE
+        cropResize: PLUGIN_IMAGE_REDIM.MODE_CROPRESIZE
+        html: PLUGIN_IMAGE_REDIM.MODE_HTML
 
     lock_ratio:
       type: toggle
-      label: Conserver les proportions par défaut
+      label: PLUGIN_IMAGE_REDIM.LOCK_RATIO
       default: 1
       options:
-        1: Oui
-        0: Non
+        1: PLUGIN_ADMIN.YES
+        0: PLUGIN_ADMIN.NO
       validate:
         type: bool
-

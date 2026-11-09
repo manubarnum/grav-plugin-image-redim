@@ -1,3 +1,15 @@
+# v2.1.0
+## 2026-11-09
+
+1. [](#new)
+    * English by default, French translation in `languages.yaml` (settings and resize panel)
+    * Panel strings translated server-side in the user's admin language and passed in the widget `config`
+2. [](#improved)
+    * Widget scoped to the Pages screens with `routes: ['/pages']`; the script stays idle elsewhere
+    * Errors use Admin 2 toasts (`window.__GRAV_TOAST`) instead of a blocking `alert()`
+    * Config read through `window.__GRAV_API` when available
+    * README: Editor Pro is not supported
+
 # v2.0.3
 ## 2026-11-09
 
