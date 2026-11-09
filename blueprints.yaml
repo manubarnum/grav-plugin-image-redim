@@ -2,7 +2,7 @@ name: Image Redim
 slug: image-redim
 type: plugin
 version: 2.0.2
-description: Redimensionnement visuel (WYSIWYG) des images directement dans l'éditeur Markdown d'Admin 2 (Grav 2).
+description: "Visual (WYSIWYG) image resizing in the Admin 2 Markdown editor (Grav 2). — Redimensionnement visuel (WYSIWYG) des images dans l'éditeur Markdown d'Admin 2 (Grav 2)."
 icon: arrows-alt
 author:
   name: Enkirche
