@@ -1,3 +1,9 @@
+# v2.1.1
+## 2026-11-09
+
+1. [](#bugfix)
+    * The editor was not detected on some installs: the Pages screen check no longer depends on the form of `window.__GRAV_ADMIN_BASE`
+
 # v2.1.0
 ## 2026-11-09
 

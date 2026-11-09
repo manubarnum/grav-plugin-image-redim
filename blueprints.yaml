@@ -1,7 +1,7 @@
 name: Image Redim
 slug: image-redim
 type: plugin
-version: 2.1.0
+version: 2.1.1
 description: Visual (WYSIWYG) image resizing in the Admin 2 Markdown editor (Grav 2).
 icon: arrows-alt
 author:

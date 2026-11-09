@@ -53,10 +53,9 @@
   /* Pages screens only: the widget is scoped to /pages, but once loaded an
      SPA script stays alive, so it also stays idle on other admin screens. */
   function onPagesRoute() {
-    var base = window.__GRAV_ADMIN_BASE || '';
-    var path = location.pathname;
-    if (base && path.indexOf(base) === 0) path = path.slice(base.length);
-    return path === '/pages' || path.indexOf('/pages/') === 0;
+    // Does not rely on __GRAV_ADMIN_BASE (its form varies between installs):
+    // any URL with a "pages" path segment, e.g. /admin/pages or /admin/pages/edit/blog
+    return /(^|\/)pages(\/|$)/.test(location.pathname);
   }
 
   function notifyError(message) {
