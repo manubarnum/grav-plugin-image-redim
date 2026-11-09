@@ -1,3 +1,11 @@
+# v2.0.3
+## 2026-11-09
+
+1. [](#improved)
+    * README en anglais (version française dans `README.fr.md`)
+    * Description bilingue anglais / français dans `blueprints.yaml`
+    * Section `compatibility` (Grav 2.0) et liens `docs` / `bugs` pour le catalogue GPM
+
 # v2.0.2
 ## 2026-11-09
 
