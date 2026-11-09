@@ -1,3 +1,9 @@
+# v2.1.2
+## 2026-11-09
+
+1. [](#bugfix)
+    * Editor not detected when the script loads on the Pages list and the editor opens afterwards: the editor is now also hooked when the mouse or keyboard first reaches it
+
 # v2.1.1
 ## 2026-11-09
 

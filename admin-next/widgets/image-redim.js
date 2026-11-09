@@ -452,6 +452,21 @@
     }
   }
 
+  // Hook an editor when the mouse or keyboard first reaches it. Admin 2 attaches
+  // __cmView to the editor element asynchronously, sometimes after the last DOM
+  // mutation, so the MutationObserver alone can miss it.
+  function hookFromEvent(e) {
+    var el = e.target && e.target.closest ? e.target.closest('.cm-editor') : null;
+    if (el && el.__cmView && !hooked.has(el.__cmView)) {
+      hookEditor(el);
+      if (e.type === 'mouseover') {
+        el.dispatchEvent(new MouseEvent('mousemove', { clientX: e.clientX, clientY: e.clientY }));
+      }
+    }
+  }
+  document.addEventListener('mouseover', hookFromEvent, true);
+  document.addEventListener('focusin', hookFromEvent, true);
+
   document.body.appendChild(trigger);
   loadConfig();
   scan();
