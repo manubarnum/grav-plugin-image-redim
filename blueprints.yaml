@@ -1,15 +1,15 @@
 name: Image Redim
 slug: image-redim
 type: plugin
-version: 2.1.3
-description: Visual (WYSIWYG) image resizing in the Admin 2 Markdown editor (Grav 2).
+version: 2.2.0
+description: Visual (WYSIWYG) image resizing in the Admin 2 Markdown editor and in Editor Pro (Grav 2).
 icon: arrows-alt
 author:
   name: Enkirche
-homepage: https://www.enkirche.fr
+homepage: https://github.com/manubarnum/grav-plugin-image-redim
 docs: https://github.com/manubarnum/grav-plugin-image-redim/blob/main/README.md
 bugs: https://github.com/manubarnum/grav-plugin-image-redim/issues
-keywords: admin, image, resize, wysiwyg, editor
+keywords: admin, image, resize, wysiwyg, editor, editor-pro
 license: MIT
 
 compatibility:

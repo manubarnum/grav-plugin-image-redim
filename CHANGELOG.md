@@ -1,3 +1,11 @@
+# v2.2.0
+## 2026-11-11
+
+1. [](#new)
+    * Editor Pro support: hover an image in Editor Pro to get the **Resize** button and panel. The image Markdown source (`data-src`) is rewritten, so the saved Markdown gets the same media actions as in the Markdown editor, and the image shown in the editor is refreshed through Editor Pro's resolve API
+2. [](#improved)
+    * The button follows its image when the page or the editor scrolls, and never covers the Admin 2 header, menus or Editor Pro's toolbar: on a tall image it moves down to the visible part, and hides while the image is covered or out of view
+
 # v2.1.3
 ## 2026-11-09
 

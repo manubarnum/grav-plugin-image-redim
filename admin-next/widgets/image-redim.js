@@ -2,11 +2,13 @@
  * Image Redim — Admin 2 (Grav 2)
  *
  * Loaded by Admin 2 as an invisible floating widget (autoLoad, showFab: false,
- * routes: ['/pages']). Attaches to the Admin 2 CodeMirror 6 editors
- * (.cm-editor elements, whose view Admin 2 exposes as __cmView).
+ * routes: ['/pages']). Attaches to:
+ * - the Admin 2 CodeMirror 6 editors (.cm-editor elements, whose view
+ *   Admin 2 exposes as __cmView);
+ * - Editor Pro (TipTap, .editor-pro-wrapper .ProseMirror, see below).
  *
- * - Hover (or put the cursor on) a Markdown image ![alt](photo.jpg)
- *   -> "Resize" button
+ * - Hover (or put the cursor on) a Markdown image ![alt](photo.jpg), or hover
+ *   an image in Editor Pro -> "Resize" button
  * - Panel: preview with a drag handle, width / height, proportions, method
  * - "Apply" rewrites the image: ![alt](photo.jpg?resize=800)
  *
@@ -211,10 +213,13 @@
 
   function imageAtCursor(view) { return imageAt(view, view.state.selection.main.head); }
 
+  // Keep (or add) angle brackets when the file name contains spaces
+  function destination(url, angle) {
+    return (angle || /\s/.test(url)) ? '<' + url + '>' : url;
+  }
+
   function replaceImage(view, img, newUrl) {
-    // Keep (or add) angle brackets when the file name contains spaces
-    var dest = (img.angle || /\s/.test(newUrl)) ? '<' + newUrl + '>' : newUrl;
-    var md = '![' + img.alt + '](' + dest + img.title + ')';
+    var md = '![' + img.alt + '](' + destination(newUrl, img.angle) + img.title + ')';
     var doc = view.state.doc, from = img.from, to = img.to;
     // The text may have moved (typing, collaborative editing): find it again
     if (doc.sliceString(from, to) !== img.text) {
@@ -227,6 +232,28 @@
     view.focus();
   }
 
+  /* An image target, whatever the editor:
+     { dom: editor root (gone = target gone), url: image path without the
+       angle brackets, preview: fallback preview URL or null,
+       place(): null, or {left, top, bottom, hit}: the button goes at `left`,
+         at the first height between `top` and `bottom` where `hit` (the
+         element it belongs to) is really visible, apply(newUrl) } */
+  function cmTarget(view, img) {
+    return {
+      dom: view.dom,
+      url: img.url,
+      preview: null,
+      place: function (w) {
+        var c = view.coordsAtPos(img.to) || view.coordsAtPos(img.from);
+        if (!c) return null;
+        // Stay inside the editor, so the visibility check sees the editor
+        var right = view.dom.getBoundingClientRect().right - w - 4;
+        return { left: Math.min(c.right + 8, right), top: c.top - 4, bottom: c.top - 4, hit: view.dom };
+      },
+      apply: function (newUrl) { replaceImage(view, img, newUrl); }
+    };
+  }
+
   /* ---------------- Floating button ---------------- */
 
   var trigger = document.createElement('button');
@@ -237,18 +264,68 @@
   var triggerCtx = null, hideTimer = null;
 
   trigger.addEventListener('mousedown', function (e) { e.preventDefault(); });
-  trigger.addEventListener('click', function () { if (triggerCtx) openPanel(triggerCtx.view, triggerCtx.img); });
+  trigger.addEventListener('click', function () { if (triggerCtx) openPanel(triggerCtx); });
   trigger.addEventListener('mouseleave', function () { hideTrigger(400); });
 
-  function showTrigger(view, img) {
-    clearTimeout(hideTimer);
-    var c = view.coordsAtPos(img.to) || view.coordsAtPos(img.from);
-    if (!c) return;
-    trigger.style.left = Math.min(c.right + 8, window.innerWidth - 150) + 'px';
-    trigger.style.top = (c.top - 4) + 'px';
-    trigger.style.display = 'block';
-    triggerCtx = { view: view, img: img };
+  /* First height in [p.top, p.bottom] where the button would sit on its own
+     element, not on something drawn above it (Admin 2 header and menus,
+     Editor Pro's sticky toolbar, a dialog). null when nothing is visible. */
+  function visibleTop(p, left, w, h) {
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var from = Math.max(p.top, 4), to = Math.min(Math.max(p.top, p.bottom - h), vh - h - 4);
+    // Probe only where the button lies over its element (an image can be
+    // narrower than the button): its top edge, left / middle / right
+    var hr = p.hit.getBoundingClientRect();
+    var x0 = Math.max(left, hr.left) + 1, x1 = Math.min(left + w, hr.right) - 1;
+    if (x1 < x0) x0 = x1 = Math.max(hr.left, Math.min(left, hr.right)); // no overlap: edge column
+    var xs = [x0, (x0 + x1) / 2, x1];
+    for (var y = from; y <= to; y += 8) {
+      var free = true;
+      for (var i = 0; i < xs.length && free; i++) {
+        var el = document.elementFromPoint(xs[i], i === 1 ? y + h - 1 : y);
+        // null: no layout information (e.g. tests), nothing to avoid
+        free = !el || el === p.hit || p.hit.contains(el);
+      }
+      if (free) return y;
+    }
+    return null;
   }
+
+  function showTrigger(target) {
+    clearTimeout(hideTimer);
+    triggerCtx = target;
+    // Measure the button first (its width depends on the translated label),
+    // and keep it out of its own hit tests
+    trigger.style.visibility = 'hidden';
+    trigger.style.pointerEvents = 'none';
+    trigger.style.display = 'block';
+    var w = trigger.offsetWidth || 90, h = trigger.offsetHeight || 22;
+    var p = target.place(w);
+    if (!p) {
+      trigger.style.visibility = '';
+      trigger.style.pointerEvents = '';
+      trigger.style.display = 'none';
+      return;
+    }
+    var left = Math.max(4, Math.min(p.left, window.innerWidth - w - 4));
+    var top = visibleTop(p, left, w, h);
+    trigger.style.visibility = '';
+    trigger.style.pointerEvents = '';
+    if (top === null) { trigger.style.display = 'none'; return; }
+    trigger.style.left = left + 'px';
+    trigger.style.top = top + 'px';
+  }
+
+  // Follow the image while the editor or the page scrolls; the button hides
+  // when its image is covered or out of view, and comes back with it
+  var scrollFrame = 0;
+  document.addEventListener('scroll', function () {
+    if (!triggerCtx || panel || scrollFrame) return;
+    scrollFrame = requestAnimationFrame(function () {
+      scrollFrame = 0;
+      if (triggerCtx && !panel) showTrigger(triggerCtx);
+    });
+  }, true);
 
   function hideTrigger(delay) {
     clearTimeout(hideTimer);
@@ -261,7 +338,7 @@
 
   function updateFromCursor(view) {
     var img = imageAtCursor(view);
-    if (img) showTrigger(view, img); else if (!trigger.matches(':hover')) hideTrigger(0);
+    if (img) showTrigger(cmTarget(view, img)); else if (!trigger.matches(':hover')) hideTrigger(0);
   }
 
   var hooked = new WeakSet();
@@ -273,16 +350,140 @@
     el.addEventListener('mousemove', function (e) {
       var pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
       var img = imageAt(view, pos);
-      if (img) showTrigger(view, img);
+      if (img) showTrigger(cmTarget(view, img));
       else if (!imageAtCursor(view)) hideTrigger(400);
     });
     el.addEventListener('mouseleave', function () { if (!imageAtCursor(view)) hideTrigger(400); });
     el.addEventListener('keyup', function () { updateFromCursor(view); });
     el.addEventListener('mouseup', function () { setTimeout(function () { updateFromCursor(view); }, 0); });
-    if (view.scrollDOM) view.scrollDOM.addEventListener('scroll', function () {
-      if (triggerCtx && triggerCtx.view === view) showTrigger(view, triggerCtx.img);
-    });
     console.info('[Image Redim] editor detected');
+  }
+
+  /* ---------------- Editor Pro (TipTap / ProseMirror) ----------------
+     Editor Pro mounts TipTap in .editor-pro-wrapper; TipTap exposes the
+     editor on its root element (.ProseMirror).editor. An image is an inline
+     "image" node: `src` is the URL shown in the editor, `data-src` the path
+     written back to the Markdown (![alt](data-src "title")). Only data-src is
+     rewritten; the shown src is then refreshed through Editor Pro's resolve
+     API. A click on an image stays Editor Pro's own "Edit Image" dialog.
+     Other TipTap editors (outside .editor-pro-wrapper) are left alone. */
+  var PM_SELECTOR = '.editor-pro-wrapper .ProseMirror';
+
+  function pmEditor(el) {
+    var ed = el && el.editor;
+    return ed && ed.view && ed.view.dom === el && !ed.isDestroyed ? ed : null;
+  }
+
+  // Position and node of an <img> rendered by the editor
+  function pmImageAt(view, imgEl) {
+    var pos;
+    try { pos = view.posAtDOM(imgEl, 0); } catch (e) { return null; }
+    var doc = view.state.doc;
+    var candidates = [pos, pos - 1];
+    for (var i = 0; i < candidates.length; i++) {
+      var p = candidates[i];
+      if (p < 0 || p > doc.content.size) continue;
+      var node = doc.nodeAt(p);
+      if (node && node.type.name === 'image') return { pos: p, node: node };
+    }
+    return null;
+  }
+
+  function pmRawSrc(node) { return node.attrs['data-src'] || node.attrs.src || ''; }
+
+  function pmTarget(editor, imgEl) {
+    var view = editor.view;
+    var found = pmImageAt(view, imgEl);
+    if (!found) return null;
+    var raw = pmRawSrc(found.node);
+    if (!raw || /^data:/i.test(raw)) return null;
+    var angle = /^<.*>$/.test(raw);
+    return {
+      dom: view.dom,
+      url: angle ? raw.slice(1, -1) : raw,
+      preview: found.node.attrs.src || null,
+      place: function (w) {
+        if (!imgEl.isConnected) return null;
+        var r = imgEl.getBoundingClientRect();
+        if (!r.width && !r.height) return null;
+        // Top right corner, or lower down when the top of a tall image is
+        // scrolled under a header
+        return { left: Math.max(r.left, r.right - w - 6), top: r.top + 6, bottom: r.bottom - 6, hit: imgEl };
+      },
+      apply: function (newUrl) { pmApply(editor, imgEl, raw, destination(newUrl, angle)); }
+    };
+  }
+
+  function pmApply(editor, imgEl, raw, dest) {
+    if (editor.isDestroyed) { notifyError(t('changed')); return; }
+    var view = editor.view;
+    // The document may have changed since the panel opened: find the image again
+    var found = imgEl.isConnected ? pmImageAt(view, imgEl) : null;
+    if (!found || pmRawSrc(found.node) !== raw) {
+      found = null;
+      view.state.doc.descendants(function (node, pos) {
+        if (found) return false;
+        if (node.type.name === 'image' && pmRawSrc(node) === raw) found = { pos: pos, node: node };
+      });
+    }
+    if (!found) { notifyError(t('changed')); return; }
+    if (dest === raw) return;
+    var attrs = Object.assign({}, found.node.attrs, { 'data-src': dest });
+    view.dispatch(view.state.tr.setNodeMarkup(found.pos, null, attrs));
+    pmRefreshSrc(editor, dest);
+  }
+
+  /* Show the image Grav now generates (e.g. the resized copy). Same API call
+     Editor Pro makes when a page opens. Display only: kept out of the undo
+     history, and the Markdown is unchanged (it comes from data-src). */
+  function pmRefreshSrc(editor, dest) {
+    var route = window.__GRAV_PAGE_ROUTE;
+    if (!route) return;
+    var base = (window.__GRAV_API_SERVER_URL || '') + (window.__GRAV_API_PREFIX || '/api/v1');
+    var headers = { 'Content-Type': 'application/json' };
+    if (window.__GRAV_API_TOKEN) headers['X-API-Token'] = window.__GRAV_API_TOKEN;
+    fetch(base + '/editor-pro/resolve', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({ route: route, content: '![](' + dest + ')' })
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (json) {
+        var data = json && (json.data !== undefined ? json.data : json);
+        var map = data && data.images && data.images[dest];
+        // No mapping: Grav serves the path as written
+        var src = map && map.resolved ? map.resolved : dest.replace(/^<(.*)>$/, '$1');
+        if (editor.isDestroyed) return;
+        var tr = editor.view.state.tr, changed = false;
+        editor.view.state.doc.descendants(function (node, pos) {
+          if (node.type.name === 'image' && node.attrs['data-src'] === dest && node.attrs.src !== src) {
+            tr.setNodeMarkup(pos, null, Object.assign({}, node.attrs, { src: src }));
+            changed = true;
+          }
+        });
+        if (changed) editor.view.dispatch(tr.setMeta('addToHistory', false));
+      })
+      .catch(function () {});
+  }
+
+  var pmHooked = new WeakSet();
+  function hookProseMirror(el) {
+    var editor = pmEditor(el);
+    if (!editor || pmHooked.has(el)) return;
+    pmHooked.add(el);
+
+    el.addEventListener('mouseover', function (e) {
+      var img = e.target;
+      if (!img || img.tagName !== 'IMG' || !el.contains(img)) return;
+      var target = pmTarget(editor, img);
+      if (target) showTrigger(target);
+    });
+    el.addEventListener('mouseout', function (e) {
+      if (e.target && e.target.tagName === 'IMG') hideTrigger(400);
+    });
+    el.addEventListener('mouseleave', function () { hideTrigger(400); });
+    console.info('[Image Redim] editor detected (Editor Pro)');
   }
 
   /* ---------------- Panel ---------------- */
@@ -296,9 +497,9 @@
   }
   function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); closePanel(); } }
 
-  function openPanel(view, img) {
+  function openPanel(target) {
     if (panel) { panel.remove(); panel = null; }
-    var parsed = parseUrl(img.url);
+    var parsed = parseUrl(target.url);
     var cur = currentSize(parsed.params);
     var natW = null, natH = null, ratio = null;
     var state = { w: cur.w, h: cur.h, mode: cur.mode || CFG.mode, lock: !!CFG.lock_ratio };
@@ -336,7 +537,7 @@
     document.body.appendChild(panel);
 
     var $ = function (s) { return panel.querySelector(s); };
-    $('.ir-title').textContent = fileName(img.url) || 'Image';
+    $('.ir-title').textContent = fileName(target.url) || 'Image';
     var stage = $('.ir-stage'), box = $('.ir-box'), handle = $('.ir-handle');
     var inW = $('.ir-w'), inH = $('.ir-h'), lock = $('.ir-lock'), modeSel = $('.ir-mode'), info = $('.ir-info');
     lock.checked = state.lock;
@@ -375,7 +576,10 @@
       render();
     }
 
-    var src = resolveImageSrc(img.url);
+    // The editor's own preview URL only when it shows the original image
+    // (no size action yet), otherwise "Original" would be the resized size
+    var unsized = parsed.params.every(function (kv) { return SIZE_KEYS.indexOf(kv[0]) === -1; });
+    var src = resolveImageSrc(target.url) || (unsized ? target.preview : null);
     if (src) {
       var im = new Image();
       im.onload = function () {
@@ -421,7 +625,7 @@
     modeSel.addEventListener('change', function () { state.mode = modeSel.value; render(); });
 
     $('.ir-reset').addEventListener('click', function () {
-      replaceImage(view, img, buildUrl(parsed, null, null, state.mode));
+      target.apply(buildUrl(parsed, null, null, state.mode));
       closePanel();
     });
     $('.ir-apply').addEventListener('click', function () {
@@ -430,7 +634,7 @@
       if (state.mode !== 'html' && state.lock && w) h = null;
       // Grav needs a width: derive it from the height if needed
       if (state.mode !== 'html' && !w && h && ratio) w = Math.round(h * ratio);
-      replaceImage(view, img, buildUrl(parsed, w, h, state.mode));
+      target.apply(buildUrl(parsed, w, h, state.mode));
       closePanel();
     });
     $('.ir-close').addEventListener('click', closePanel);
@@ -444,9 +648,12 @@
   /* ---------------- Init ---------------- */
 
   function scan() {
-    if (onPagesRoute()) document.querySelectorAll('.cm-editor').forEach(hookEditor);
+    if (onPagesRoute()) {
+      document.querySelectorAll('.cm-editor').forEach(hookEditor);
+      document.querySelectorAll(PM_SELECTOR).forEach(hookProseMirror);
+    }
     // Editor removed (admin navigation): hide the button and the panel
-    if (triggerCtx && !document.body.contains(triggerCtx.view.dom)) {
+    if (triggerCtx && !document.body.contains(triggerCtx.dom)) {
       trigger.style.display = 'none'; triggerCtx = null;
       if (panel) closePanel();
     }
@@ -456,6 +663,13 @@
   // __cmView to the editor element asynchronously, sometimes after the last DOM
   // mutation, so the MutationObserver alone can miss it.
   function hookFromEvent(e) {
+    var pm = e.target && e.target.closest ? e.target.closest(PM_SELECTOR) : null;
+    if (pm) {
+      // Hooked during the capture phase: the same mouseover still reaches
+      // the new listener on the editor, so the button shows right away
+      if (!pmHooked.has(pm)) hookProseMirror(pm);
+      return;
+    }
     var el = e.target && e.target.closest ? e.target.closest('.cm-editor') : null;
     if (el && el.__cmView && !hooked.has(el.__cmView)) {
       hookEditor(el);
