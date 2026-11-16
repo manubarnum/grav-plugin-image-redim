@@ -1,3 +1,10 @@
+# v2.2.1
+## 2026-11-16
+
+1. [](#bugfix)
+    * Sizes could go beyond the image's original size (reported by Paul Massendari): the handle, the width and height fields and a size already in the Markdown are now limited to the original size, with a note in the panel. Grav 2 never enlarges with `resize` / `cropResize`, so the written size was misleading, and the `html` mode made the browser stretch the image
+    * At the original size, the size parameters are removed and Grav serves the original file
+
 # v2.2.0
 ## 2026-11-11
 

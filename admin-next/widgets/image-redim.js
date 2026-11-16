@@ -41,7 +41,7 @@
     mode_html: 'html (width/height attributes)',
     original: 'Original',
     unknown_size: 'Original size unknown',
-    upscale: 'upscaling',
+    max_size: 'limited to the original size',
     no_preview: 'Preview unavailable (image not in this page\'s media)',
     reset: 'Original size',
     apply: 'Apply',
@@ -562,17 +562,35 @@
       box.style.height = Math.round(h * scale) + 'px';
       var txt = natW ? t('original') + ': ' + natW + ' × ' + natH + ' px' : t('unknown_size');
       if (state.w || state.h) txt += ' → ' + (state.w || 'auto') + ' × ' + (state.h || 'auto');
-      if (natW && state.w > natW && state.mode !== 'html') txt += ' ⚠ ' + t('upscale');
+      if (capped) txt += ' (' + t('max_size') + ')';
       info.textContent = txt;
+      capped = false;
+    }
+
+    /* Never larger than the original: Grav 2 never enlarges with resize /
+       cropResize (the written size would be misleading), and the html mode
+       would make the browser stretch the image. Unknown original = no limit. */
+    var capped = false;
+    function clampSize() {
+      if (!natW || !natH) return;
+      if (state.w > natW) { state.w = natW; capped = true; }
+      if (state.h > natH) { state.h = natH; capped = true; }
+      // Proportions kept: recompute the other side from the clamped one
+      if (state.lock && ratio && state.w && state.h) {
+        if (Math.round(state.w / ratio) > natH) state.w = Math.round(natH * ratio);
+        state.h = Math.round(state.w / ratio);
+      }
     }
     function setW(w) {
       state.w = w > 0 ? Math.round(w) : null;
       if (state.lock && ratio && state.w) state.h = Math.round(state.w / ratio);
+      clampSize();
       render();
     }
     function setH(h) {
       state.h = h > 0 ? Math.round(h) : null;
       if (state.lock && ratio && state.h) state.w = Math.round(state.h * ratio);
+      clampSize();
       render();
     }
 
@@ -584,9 +602,12 @@
       var im = new Image();
       im.onload = function () {
         natW = im.naturalWidth; natH = im.naturalHeight; ratio = natW / natH;
+        inW.max = String(natW); inH.max = String(natH);
         if (!state.w && !state.h) { state.w = natW; state.h = natH; }
         else if (state.w && !state.h) state.h = Math.round(state.w / ratio);
         else if (state.h && !state.w) state.w = Math.round(state.h * ratio);
+        // A size already larger than the original in the Markdown is brought back
+        clampSize();
         render();
       };
       im.onerror = function () { render(); };
@@ -608,7 +629,7 @@
       function move(ev) {
         var nw = Math.max(10, sw + ev.clientX - sx), nh = Math.max(10, sh + ev.clientY - sy);
         if (state.lock && ratio) setW(nw / scale);
-        else { state.w = Math.round(nw / scale); state.h = Math.round(nh / scale); render(); }
+        else { state.w = Math.round(nw / scale); state.h = Math.round(nh / scale); clampSize(); render(); }
       }
       function up() { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); }
       handle.addEventListener('pointermove', move);
@@ -629,11 +650,14 @@
       closePanel();
     });
     $('.ir-apply').addEventListener('click', function () {
+      clampSize();
       var w = state.w, h = state.h;
       // Proportions kept: the width alone is enough (e.g. resize=800)
       if (state.mode !== 'html' && state.lock && w) h = null;
       // Grav needs a width: derive it from the height if needed
       if (state.mode !== 'html' && !w && h && ratio) w = Math.round(h * ratio);
+      // At the original size, Grav has nothing to resize: serve the original
+      if (state.mode !== 'html' && natW && w >= natW && (!h || h >= natH)) { w = null; h = null; }
       target.apply(buildUrl(parsed, w, h, state.mode));
       closePanel();
     });

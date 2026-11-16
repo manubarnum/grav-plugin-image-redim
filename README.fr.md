@@ -40,6 +40,10 @@ le bouton apparaît dans son coin (un clic sur l'image ouvre toujours la fenêtr
 | `cropResize` | Redimensionne pour tenir dans le cadre sans déformer. |
 | `html` | Image d'origine inchangée, ajout des attributs `width`/`height`. |
 
+Le panneau ne dépasse jamais la taille d'origine de l'image : Grav 2 n'agrandit jamais avec `resize` ou
+`cropResize`, et le mode `html` ferait étirer l'image par le navigateur. À la taille d'origine, les paramètres
+de taille sont retirés et Grav sert le fichier d'origine.
+
 Les autres paramètres déjà présents dans l'URL de l'image (`classes`, `lightbox`, `quality`…) sont conservés.
 
 ## Fonctionnement technique

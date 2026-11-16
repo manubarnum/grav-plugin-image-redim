@@ -60,7 +60,9 @@ File names with spaces are supported. Admin 2 writes them between angle brackets
 | `cropResize` | `photo.jpg?cropResize=800,600` | The image is reduced to fit inside the box, without distortion and without padding. Nothing is cut off. |
 | `html` | `photo.jpg?width=800&height=533` | The original file is served unchanged. Only the `width` / `height` HTML attributes are added. |
 
-In Grav 2, neither `resize` nor `cropResize` enlarges an image beyond its original size.
+The panel never goes beyond the image's original size: Grav 2 never enlarges with `resize` or `cropResize`,
+and the `html` mode would make the browser stretch the image. At the original size, the size parameters are
+removed and Grav serves the original file.
 
 ## Configuration
 

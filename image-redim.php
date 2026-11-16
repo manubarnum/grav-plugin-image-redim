@@ -23,7 +23,7 @@ class ImageRedimPlugin extends Plugin
     private const STRINGS = [
         'trigger', 'close', 'drag', 'width', 'height', 'proportions',
         'mode_resize', 'mode_cropresize', 'mode_html',
-        'original', 'unknown_size', 'upscale', 'no_preview',
+        'original', 'unknown_size', 'max_size', 'no_preview',
         'reset', 'apply', 'changed',
     ];
 

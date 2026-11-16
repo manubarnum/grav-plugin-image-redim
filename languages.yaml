@@ -15,7 +15,7 @@ en:
     PROPORTIONS: Proportions
     ORIGINAL: Original
     UNKNOWN_SIZE: Original size unknown
-    UPSCALE: upscaling
+    MAX_SIZE: limited to the original size
     NO_PREVIEW: Preview unavailable (image not in this page's media)
     RESET: Original size
     APPLY: Apply
@@ -38,7 +38,7 @@ fr:
     PROPORTIONS: Proportions
     ORIGINAL: Original
     UNKNOWN_SIZE: Dimensions d'origine inconnues
-    UPSCALE: agrandissement
+    MAX_SIZE: limité à la taille d'origine
     NO_PREVIEW: Aperçu indisponible (image hors médias de la page)
     RESET: Taille d'origine
     APPLY: Appliquer
